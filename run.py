@@ -16,7 +16,7 @@ def execute(cmd):
 
     popen = subprocess.Popen([cmd], stdout=subprocess.PIPE, shell=True, universal_newlines=True)
     for stdout_line in iter(popen.stdout.readline, ""):
-        yield stdout_line 
+        yield stdout_line
     popen.stdout.close()
     return_code = popen.wait()
     if return_code:
@@ -32,16 +32,16 @@ def create_output_path(output_path: str, overwrite: bool, resume: bool) -> str:
 
     if resume:
         assert os.path.exists(output_path), "there's nothing to resume from"
-    
+
     if not resume:
         os.mkdir(output_path)
 
         for p in ["database", "dense", "sparse"]:
             os.mkdir(os.path.join(output_path, p))
 
-        with open(os.path.join(output_path, "log.json"), 'w') as log_file:
+        with open(os.path.join(output_path, "log.json"), "w") as log_file:
             json.dump([], log_file)
-    
+
     return output_path
 
 def amend_args(colmap_command: str, args: dict, image_path: str, output_path: str, database_path: str):
@@ -56,46 +56,54 @@ def amend_args(colmap_command: str, args: dict, image_path: str, output_path: st
         "mapper",
         "hierarchical_mapper",
     ]:
-        args['database_path'] = database_path
+        args["database_path"] = database_path
 
     if colmap_command in [
-        'feature_extractor',
-        'mapper',
+        "feature_extractor",
+        "mapper",
         "hierarchical_mapper",
         "image_undistorter",
     ]:
-        args['image_path'] = image_path
+        args["image_path"] = image_path
 
     if colmap_command in [
-        'stereo_fusion',
-        "patch_match_stereo"
+        "stereo_fusion",
+        "patch_match_stereo",
     ]:
-        args['workspace_path'] = os.path.join(output_path, "dense")
+        args["workspace_path"] = os.path.join(output_path, "dense")
 
     if colmap_command in [
-    'hierarchical_mapper', 'mapper'
+        "hierarchical_mapper",
+        "mapper",
     ]:
-        args['output_path'] = os.path.join(output_path, "sparse")
+        args["output_path"] = os.path.join(output_path, "sparse")
 
     if colmap_command in [
-        'image_undistorter'
+        "image_undistorter",
     ]:
-        args['output_path'] = os.path.join(output_path, "dense")
-        args['input_path'] = os.path.join(output_path, "sparse", "0")
+        args["output_path"] = os.path.join(output_path, "dense")
+        args["input_path"] = os.path.join(output_path, "sparse", "0")
 
     if colmap_command in [
-        'stereo_fusion'
+        "stereo_fusion",
     ]:
-        args['output_path'] = os.path.join(output_path, "dense", "fused.ply")
+        args["output_path"] = os.path.join(output_path, "dense", "fused.ply")
 
-    if colmap_command in ['poisson_mesher', 'delaunay_mesher']:
-        args['input_path'] = os.path.join(output_path, "dense", "fused.ply")
+    if colmap_command in [
+        "poisson_mesher",
+        "delaunay_mesher",
+    ]:
+        args["input_path"] = os.path.join(output_path, "dense", "fused.ply")
 
-    if colmap_command in ['poisson_mesher']:
-        args['output_path'] = os.path.join(output_path, "dense", "poisson", "mesh.ply")
+    if colmap_command in [
+        "poisson_mesher",
+    ]:
+        args["output_path"] = os.path.join(output_path, "dense", "poisson", "mesh.ply")
 
-    if colmap_command in ['delaunay_mesher']:
-        args['output_path'] = os.path.join(output_path, "dense", "delaunay", "mesh.ply")
+    if colmap_command in [
+        "delaunay_mesher",
+    ]:
+        args["output_path"] = os.path.join(output_path, "dense", "delaunay", "mesh.ply")
 
     return args
 
@@ -129,21 +137,21 @@ def read_config(command_line_args) -> list:
 
         args = [f"--{key} {value}" for key, value in args.items()]
         args = " ".join(args)
-        
+
         command = f"colmap {colmap_command} {args}"
         commands.append(command)
-    
+
     return commands
 
 def run_commands(list_of_commands: list, log_file: str):
     """
     keep running commands until a non-zero exit code
     """
-    
+
     assert os.path.isfile(log_file)
     assert ".json" in log_file
 
-    with open(log_file, 'r') as file:
+    with open(log_file, "r") as file:
         log = json.load(file)
 
     for i, c in enumerate(list_of_commands):
@@ -157,7 +165,7 @@ def run_commands(list_of_commands: list, log_file: str):
             print(path, end="")
 
         ending_time = time.time()
-        
+
         elapsed_time = ending_time - starting_time
 
         print("=" * 40)
@@ -165,15 +173,15 @@ def run_commands(list_of_commands: list, log_file: str):
         print("=" * 40)
 
         log.append({
-            c: elapsed_time     
+            c: elapsed_time
         })
 
-        with open(log_file, 'w') as file:
+        with open(log_file, "w") as file:
             json.dump(log, file)
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Run a COLMAP workflow and record everything')
+    parser = argparse.ArgumentParser(description="Run a COLMAP workflow and record everything")
     parser.add_argument("--image_path",  type=str, help="path to folder with all the images", required=True)
     parser.add_argument("--config_file", type=str, help="path to yaml configuration file", required=True)
     parser.add_argument("--output_path", type=str, help="path where all output will be stored", required=True)
