@@ -6,6 +6,10 @@ import shutil
 import shlex
 import time
 import json
+import jtop
+import pandas
+import flatten_dict
+import datetime
 
 
 def execute(cmd):
@@ -53,6 +57,8 @@ def amend_args(colmap_command: str, args: dict, image_path: str, output_path: st
         "feature_extractor",
         "exhaustive_matcher",
         "vocab_tree_matcher",
+        "transitive_matcher",
+        "sequential_matcher",
         "mapper",
         "hierarchical_mapper",
     ]:
@@ -91,19 +97,16 @@ def amend_args(colmap_command: str, args: dict, image_path: str, output_path: st
 
     if colmap_command in [
         "poisson_mesher",
-        "delaunay_mesher",
+        
     ]:
         args["input_path"] = os.path.join(output_path, "dense", "fused.ply")
-
-    if colmap_command in [
-        "poisson_mesher",
-    ]:
         args["output_path"] = os.path.join(output_path, "dense", "poisson", "mesh.ply")
 
     if colmap_command in [
         "delaunay_mesher",
     ]:
-        args["output_path"] = os.path.join(output_path, "dense", "delaunay", "mesh.ply")
+        args["input_path"] = os.path.join(output_path, "dense")
+        args["output_path"] = os.path.join(output_path, "delaunay.ply")
 
     return args
 
@@ -154,30 +157,45 @@ def run_commands(list_of_commands: list, log_file: str):
     with open(log_file, "r") as file:
         log = json.load(file)
 
+    jetson = jtop.jtop()
+    jetson.open()
+
     for i, c in enumerate(list_of_commands):
         print("=" * 40)
         print(f"{i+1}. {c}")
         print("=" * 40)
 
         starting_time = time.time()
-
+        jetson_stats_array = []
+        time_last_taken = None
         for path in execute(c):
             print(path, end="")
-
+            if time_last_taken is None or (time.time() - time_last_taken) > 10:
+                jetson_stats_array.append(flatten_dict.flatten(jetson.stats, reducer='path'))
+                jetson_stats_array[-1]["time"] = time.time()
+                time_last_taken = time.time()
         ending_time = time.time()
-
         elapsed_time = ending_time - starting_time
 
         print("=" * 40)
         print(f"Command #{i} took {elapsed_time} seconds to complete")
         print("=" * 40)
 
+        jetson_df = pandas.DataFrame(data=jetson_stats_array).set_index('time')
+        jetson_df.index = pandas.to_datetime(jetson_df.index, unit='s', origin='unix', utc=True)
+        jetson_df = jetson_df.resample('10S').mean()
+        jetson_df.index = [datetime.datetime.timestamp(x) for x in jetson_df.index.to_pydatetime()]
+
         log.append({
-            c: elapsed_time
+            "command": c,
+            "elapsed_time": elapsed_time,
+            "jetson_stats": jetson_df.to_dict(), 
         })
 
         with open(log_file, "w") as file:
             json.dump(log, file)
+
+    jetson.close()
 
 
 if __name__ == "__main__":
