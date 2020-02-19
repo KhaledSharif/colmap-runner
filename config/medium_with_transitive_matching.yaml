@@ -1,42 +1,40 @@
+- feature_extractor:
+    SiftExtraction.num_threads: 4
+    SiftExtraction.use_gpu: 1
+    ImageReader.camera_model: SIMPLE_RADIAL
+    ImageReader.single_camera: 1
+    ImageReader.single_camera_per_folder: 1
 
-#- feature_extractor:
-#    SiftExtraction.num_threads: 4
-#    SiftExtraction.use_gpu: 1
-#    ImageReader.camera_model: SIMPLE_RADIAL
-#    ImageReader.single_camera: 1
-#    ImageReader.single_camera_per_folder: 1
-
-#- vocab_tree_matcher:
-#    VocabTreeMatching.vocab_tree_path: /home/jetson/vocab_tree.bin
-#    SiftMatching.use_gpu: 1
-#    SiftMatching.num_threads: 4
-#    VocabTreeMatching.num_images: 50  # 1/2 default
-#    VocabTreeMatching.num_checks: 128 # 1/2 default
+- vocab_tree_matcher:
+    VocabTreeMatching.vocab_tree_path: /home/jetson/vocab_tree.bin
+    SiftMatching.use_gpu: 1
+    SiftMatching.num_threads: 4
+    VocabTreeMatching.num_images: 50  # 1/2 default
+    VocabTreeMatching.num_checks: 128 # 1/2 default
     
-#- transitive_matcher:
-#    TransitiveMatching.num_iterations: 5
+- transitive_matcher:
+    TransitiveMatching.num_iterations: 5
 
-#- mapper:
-#    Mapper.multiple_models: 0
+- mapper:
+    Mapper.multiple_models: 0
 
-#- image_undistorter:
-#    output_type: COLMAP
+- image_undistorter:
+    output_type: COLMAP
 
-#- patch_match_stereo:
-#    workspace_format: COLMAP
-#    PatchMatchStereo.filter: 1
-#    PatchMatchStereo.geom_consistency: 1
-#    PatchMatchStereo.window_step: 2
-#    PatchMatchStereo.window_radius: 4
-#    PatchMatchStereo.max_image_size: 500
-#    PatchMatchStereo.num_iterations: 5
-#    PatchMatchStereo.num_samples: 15
+- patch_match_stereo:
+    workspace_format: COLMAP
+    PatchMatchStereo.filter: 1
+    PatchMatchStereo.geom_consistency: 1
+    PatchMatchStereo.window_step: 2
+    PatchMatchStereo.window_radius: 4
+    PatchMatchStereo.max_image_size: 500
+    PatchMatchStereo.num_iterations: 5
+    PatchMatchStereo.num_samples: 15
 
-
-#- stereo_fusion:
-#    workspace_format: COLMAP
-#    input_type: geometric
-#    StereoFusion.max_num_pixels: 1000
+- stereo_fusion:
+    workspace_format: COLMAP
+    input_type: geometric
+    StereoFusion.max_num_pixels: 1000
 
 - delaunay_mesher:
     DelaunayMeshing.num_threads: 4
