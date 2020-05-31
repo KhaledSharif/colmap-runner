@@ -1,6 +1,6 @@
 - feature_extractor:
     SiftExtraction.use_gpu: 1
-    SiftExtraction.max_num_features: 1024
+    SiftExtraction.max_num_features: 512
     ImageReader.camera_model: SIMPLE_RADIAL
     ImageReader.single_camera: 1
     ImageReader.single_camera_per_folder: 1
@@ -13,7 +13,7 @@
     SiftMatching.guided_matching: 1
     SequentialMatching.overlap: 25
     SequentialMatching.loop_detection: 1
-    
+
 - transitive_matcher:
     TransitiveMatching.num_iterations: 10
 
@@ -37,4 +37,6 @@
     workspace_format: COLMAP
     input_type: geometric
     StereoFusion.max_image_size: 1000
+    
+
     

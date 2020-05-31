@@ -6,9 +6,7 @@ import shutil
 import shlex
 import time
 import json
-import jtop
 import pandas
-import flatten_dict
 import datetime
 
 
@@ -18,7 +16,8 @@ def execute(cmd):
     https://stackoverflow.com/questions/4417546/constantly-print-subprocess-output-while-process-is-running
     """
 
-    popen = subprocess.Popen([cmd], stdout=subprocess.PIPE, shell=True, universal_newlines=True)
+    popen = subprocess.Popen(
+        [cmd], stdout=subprocess.PIPE, shell=True, universal_newlines=True)
     for stdout_line in iter(popen.stdout.readline, ""):
         yield stdout_line
     popen.stdout.close()
@@ -26,13 +25,15 @@ def execute(cmd):
     if return_code:
         raise subprocess.CalledProcessError(return_code, cmd)
 
+
 def create_output_path(output_path: str, overwrite: bool, resume: bool) -> str:
     if overwrite and os.path.exists(output_path):
         print("deleting existing output folder")
         shutil.rmtree(output_path)
 
     if not overwrite and not resume:
-        assert not os.path.exists(output_path), "output folder already exists and won't be overwritten"
+        assert not os.path.exists(
+            output_path), "output folder already exists and won't be overwritten"
 
     if resume:
         assert os.path.exists(output_path), "there's nothing to resume from"
@@ -47,6 +48,7 @@ def create_output_path(output_path: str, overwrite: bool, resume: bool) -> str:
             json.dump([], log_file)
 
     return output_path
+
 
 def amend_args(colmap_command: str, args: dict, image_path: str, output_path: str, database_path: str):
     """
@@ -97,10 +99,11 @@ def amend_args(colmap_command: str, args: dict, image_path: str, output_path: st
 
     if colmap_command in [
         "poisson_mesher",
-        
+
     ]:
         args["input_path"] = os.path.join(output_path, "dense", "fused.ply")
-        args["output_path"] = os.path.join(output_path, "dense", "poisson", "mesh.ply")
+        args["output_path"] = os.path.join(
+            output_path, "dense", "poisson", "mesh.ply")
 
     if colmap_command in [
         "delaunay_mesher",
@@ -111,16 +114,17 @@ def amend_args(colmap_command: str, args: dict, image_path: str, output_path: st
     return args
 
 
-def read_config(command_line_args) -> list:
+def read_config(config_file, image_path, output_path, colmap_path) -> list:
     """
     read a yaml config file and return a bunch of commands
     """
 
-    with open(command_line_args.config_file) as file:
+    with open(config_file) as file:
         config = yaml.load(file, Loader=yaml.FullLoader)
 
-    assert os.path.exists(command_line_args.output_path)
-    assert os.path.exists(os.path.join(command_line_args.output_path, "database"))
+    assert os.path.exists(output_path)
+    assert os.path.exists(os.path.join(
+        output_path, "database"))
 
     commands = []
     for section in config:
@@ -133,20 +137,22 @@ def read_config(command_line_args) -> list:
         args = amend_args(
             colmap_command=colmap_command,
             args=args,
-            image_path=command_line_args.image_path,
-            output_path=command_line_args.output_path,
-            database_path=os.path.join(command_line_args.output_path, "database", "database.db"),
+            image_path=image_path,
+            output_path=output_path,
+            database_path=os.path.join(
+                output_path, "database", "database.db"),
         )
 
         args = [f"--{key} {value}" for key, value in args.items()]
         args = " ".join(args)
 
-        command = f"colmap {colmap_command} {args}"
+        command = f"{colmap_path} {colmap_command} {args}"
         commands.append(command)
 
     return commands
 
-def run_commands(list_of_commands: list, log_file: str):
+
+def run_commands(list_of_commands, log_file, verbose=True):
     """
     keep running commands until a non-zero exit code
     """
@@ -157,23 +163,17 @@ def run_commands(list_of_commands: list, log_file: str):
     with open(log_file, "r") as file:
         log = json.load(file)
 
-    jetson = jtop.jtop()
-    jetson.open()
-
     for i, c in enumerate(list_of_commands):
         print("=" * 40)
         print(f"{i+1}. {c}")
         print("=" * 40)
 
         starting_time = time.time()
-        jetson_stats_array = []
-        time_last_taken = None
+        command_output = ""
         for path in execute(c):
-            print(path, end="")
-            if time_last_taken is None or (time.time() - time_last_taken) > 10:
-                jetson_stats_array.append(flatten_dict.flatten(jetson.stats, reducer='path'))
-                jetson_stats_array[-1]["time"] = time.time()
-                time_last_taken = time.time()
+            if verbose:
+                print(path, end="")
+            command_output += path
         ending_time = time.time()
         elapsed_time = ending_time - starting_time
 
@@ -181,45 +181,50 @@ def run_commands(list_of_commands: list, log_file: str):
         print(f"Command #{i} took {elapsed_time} seconds to complete")
         print("=" * 40)
 
-        jetson_df = pandas.DataFrame(data=jetson_stats_array).set_index('time')
-        jetson_df.index = pandas.to_datetime(jetson_df.index, unit='s', origin='unix', utc=True)
-        jetson_df = jetson_df.resample('10S').mean()
-        jetson_df.index = [datetime.datetime.timestamp(x) for x in jetson_df.index.to_pydatetime()]
-
         log.append({
             "command": c,
             "elapsed_time": elapsed_time,
-            "jetson_stats": jetson_df.to_dict(), 
+            "output": command_output,
         })
 
         with open(log_file, "w") as file:
             json.dump(log, file)
 
-    jetson.close()
-
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run a COLMAP workflow and record everything")
-    parser.add_argument("--image_path",  type=str, help="path to folder with all the images", required=True)
-    parser.add_argument("--config_file", type=str, help="path to yaml configuration file", required=True)
-    parser.add_argument("--output_path", type=str, help="path where all output will be stored", required=True)
-    parser.add_argument("--overwrite", type=bool, default=False, help="overwrite output path if it exists")
-    parser.add_argument("--resume", type=bool, default=False, help="resume previous workflow without overwriting")
+    parser = argparse.ArgumentParser(
+        description="Run a COLMAP workflow and record everything")
+    parser.add_argument("--image_path",  type=str,
+                        help="path to folder with all the images", required=True)
+    parser.add_argument("--config_file", type=str,
+                        help="path to yaml configuration file", required=True)
+    parser.add_argument("--output_path", type=str,
+                        help="path where all output will be stored", required=True)
+    parser.add_argument("--overwrite", type=bool, default=False,
+                        help="overwrite output path if it exists")
+    parser.add_argument("--resume", type=bool, default=False,
+                        help="resume previous workflow without overwriting")
+    parser.add_argument("--colmap_path", type=str,
+                        default="colmap", help="path to your colmap executable")
+    parser.add_argument("--vocab_tree_path", type=str,
+                        default="/tmp/vocab_tree.bin", help="path to your colmap executable")
     args = parser.parse_args()
 
     # overwrite and resume cannot both be true
-    if args.overwrite: assert not args.resume
-    if args.resume: assert not args.overwrite
+    if args.overwrite:
+        assert not args.resume
+    if args.resume:
+        assert not args.overwrite
+
+    assert os.path.exists(args.vocab_tree_path) and os.path.isfile(args.vocab_tree_path)
 
     create_output_path(args.output_path, args.overwrite, args.resume)
 
-    commands = read_config(args)
+    commands = read_config(args.config_file, args.image_path, args.output_path, args.colmap_path)
 
     run_commands(commands, os.path.join(args.output_path, "log.json"))
 
     print("=" * 40)
     print("All commands run successfully!")
     print("=" * 40)
-
-
 

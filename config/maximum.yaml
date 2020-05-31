@@ -1,16 +1,22 @@
 - feature_extractor:
-    SiftExtraction.num_threads: 4
     SiftExtraction.use_gpu: 1
+    SiftExtraction.max_num_features: 8192
     ImageReader.camera_model: SIMPLE_RADIAL
     ImageReader.single_camera: 1
     ImageReader.single_camera_per_folder: 1
+    SiftExtraction.estimate_affine_shape: 1
+    SiftExtraction.domain_size_pooling: 1
 
 - sequential_matcher:
-    SequentialMatching.vocab_tree_path: /home/jetson/vocab_tree.bin
+    SequentialMatching.vocab_tree_path: /tmp/vocab_tree.bin
     SiftMatching.use_gpu: 1
-    SiftMatching.num_threads: 4
+    SiftMatching.guided_matching: 1
     SequentialMatching.overlap: 25
+    SequentialMatching.loop_detection: 1
     
+- transitive_matcher:
+    TransitiveMatching.num_iterations: 10
+
 - mapper:
     Mapper.multiple_models: 0
 
@@ -19,21 +25,13 @@
 
 - patch_match_stereo:
     workspace_format: COLMAP
-    PatchMatchStereo.filter: 1
     PatchMatchStereo.geom_consistency: 1
-    PatchMatchStereo.window_step: 2
-    PatchMatchStereo.window_radius: 4
-    PatchMatchStereo.max_image_size: 500
-    PatchMatchStereo.num_iterations: 5
-    PatchMatchStereo.num_samples: 15
+    PatchMatchStereo.filter: 1
 
 - stereo_fusion:
     workspace_format: COLMAP
     input_type: geometric
-    StereoFusion.max_num_pixels: 1000
-
-- delaunay_mesher:
-    DelaunayMeshing.num_threads: 4
+    StereoFusion.max_image_size: 1000
     
 
     

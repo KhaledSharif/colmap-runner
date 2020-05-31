@@ -1,6 +1,6 @@
 - feature_extractor:
     SiftExtraction.use_gpu: 1
-    SiftExtraction.max_num_features: 1024
+    SiftExtraction.max_num_features: 4096
     ImageReader.camera_model: SIMPLE_RADIAL
     ImageReader.single_camera: 1
     ImageReader.single_camera_per_folder: 1
@@ -25,16 +25,14 @@
 
 - patch_match_stereo:
     workspace_format: COLMAP
-    PatchMatchStereo.window_step: 2 # default is 1
-    PatchMatchStereo.window_radius: 4 # default is 5
     PatchMatchStereo.geom_consistency: 1
     PatchMatchStereo.filter: 1
     PatchMatchStereo.max_image_size: 1000
-    PatchMatchStereo.num_iterations: 4 # default is 5
-    PatchMatchStereo.num_samples: 10 # default is 15
 
 - stereo_fusion:
     workspace_format: COLMAP
     input_type: geometric
     StereoFusion.max_image_size: 1000
+
+
     
