@@ -8,7 +8,19 @@ import time
 import json
 import pandas
 import datetime
+import tempfile
 
+
+def delete_everything(folder):
+    for filename in os.listdir(folder):
+        file_path = os.path.join(folder, filename)
+        try:
+            if os.path.isfile(file_path) or os.path.islink(file_path):
+                os.unlink(file_path)
+            elif os.path.isdir(file_path):
+                shutil.rmtree(file_path)
+        except Exception as e:
+            print('Failed to delete %s. Reason: %s' % (file_path, e))
 
 def execute(cmd):
     """
@@ -87,6 +99,12 @@ def amend_args(colmap_command: str, args: dict, image_path: str, output_path: st
         args["output_path"] = os.path.join(output_path, "sparse")
 
     if colmap_command in [
+        "model_aligner",
+    ]:
+        args["output_path"] = os.path.join(output_path, "sparse", "0")
+        args["input_path"] = os.path.join(output_path, "sparse", "0")
+
+    if colmap_command in [
         "image_undistorter",
     ]:
         args["output_path"] = os.path.join(output_path, "dense")
@@ -125,6 +143,28 @@ def read_config(config_file, image_path, output_path, colmap_path) -> list:
     assert os.path.exists(output_path)
     assert os.path.exists(os.path.join(
         output_path, "database"))
+
+    if os.path.exists(image_path) and os.path.isfile(image_path) and image_path.endswith(".txt"):
+        # create a temp folder in /tmp with symlinks to every image in the txt file
+        with open(image_path, "r") as image_list_file:
+            image_list = image_list_file.readlines()
+        
+        assert len(image_list) > 0
+
+        image_path = "/tmp/colmap_images"
+
+        if os.path.exists(image_path):
+            delete_everything(image_path)
+        else:
+            os.mkdir(image_path)
+
+        for image in image_list:
+            image = image.strip()
+            assert os.path.isabs(image)
+            assert os.path.exists(image) and os.path.isfile(image)
+            _, tail = os.path.split(image)
+            os.symlink(image, os.path.join(image_path, tail))
+
 
     commands = []
     for section in config:
@@ -192,10 +232,13 @@ def run_commands(list_of_commands, log_file, verbose=True):
 
 
 if __name__ == "__main__":
+    default_vocab_tree_path = "/tmp/vocab_tree.bin"
+    default_georegistration_path = "/tmp/georegistration.txt"
+
     parser = argparse.ArgumentParser(
         description="Run a COLMAP workflow and record everything")
     parser.add_argument("--image_path",  type=str,
-                        help="path to folder with all the images", required=True)
+                        help="path to folder with all the images, or a text file containing absolute paths to images", required=True)
     parser.add_argument("--config_file", type=str,
                         help="path to yaml configuration file", required=True)
     parser.add_argument("--output_path", type=str,
@@ -207,7 +250,10 @@ if __name__ == "__main__":
     parser.add_argument("--colmap_path", type=str,
                         default="colmap", help="path to your colmap executable")
     parser.add_argument("--vocab_tree_path", type=str,
-                        default="/tmp/vocab_tree.bin", help="path to your colmap executable")
+                        default=default_vocab_tree_path, help="path to the vocabulary tree binary")
+    parser.add_argument("--georegistration", type=str,
+                        default=default_georegistration_path, help="path to a text file with gps coordinates for every image")
+
     args = parser.parse_args()
 
     # overwrite and resume cannot both be true
@@ -217,12 +263,22 @@ if __name__ == "__main__":
         assert not args.overwrite
 
     assert os.path.exists(args.vocab_tree_path) and os.path.isfile(args.vocab_tree_path)
+    if args.vocab_tree_path != default_vocab_tree_path:
+        if os.path.exists(default_vocab_tree_path):
+            os.remove(default_vocab_tree_path)
+        os.symlink(args.vocab_tree_path, default_vocab_tree_path)
+
+    assert os.path.exists(args.georegistration) and os.path.isfile(args.georegistration)
+    if args.georegistration != default_georegistration_path:
+        if os.path.exists(default_georegistration_path):
+            os.remove(default_georegistration_path)
+        os.symlink(args.georegistration, default_georegistration_path)
 
     create_output_path(args.output_path, args.overwrite, args.resume)
 
     commands = read_config(args.config_file, args.image_path, args.output_path, args.colmap_path)
 
-    run_commands(commands, os.path.join(args.output_path, "log.json"))
+    run_commands(commands, os.path.join(args.output_path, "log.json"), verbose=True)
 
     print("=" * 40)
     print("All commands run successfully!")

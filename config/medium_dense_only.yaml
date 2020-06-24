@@ -1,0 +1,15 @@
+- image_undistorter:
+    output_type: COLMAP
+
+- patch_match_stereo:
+    workspace_format: COLMAP
+    PatchMatchStereo.geom_consistency: 1
+    PatchMatchStereo.filter: 1
+    PatchMatchStereo.max_image_size: 1000
+
+- stereo_fusion:
+    workspace_format: COLMAP
+    input_type: geometric
+    StereoFusion.max_image_size: 1000
+
+
